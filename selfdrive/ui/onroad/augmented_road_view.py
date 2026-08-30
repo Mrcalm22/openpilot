@@ -41,12 +41,15 @@ class CameraOverride(IntEnum):
 
 class CameraToggleButton(Widget):
   SIZE = 164
+  ICON_SIZE = 104
 
   def __init__(self):
     super().__init__()
     self._mode = CameraOverride.AUTO
     self._current_stream = ROAD_CAM
     self._has_wide_cam = False
+    self._road_icon = gui_app.texture("icons/camera_road_white.png", self.ICON_SIZE, self.ICON_SIZE)
+    self._wide_icon = gui_app.texture("icons/camera_wide_white.png", self.ICON_SIZE, self.ICON_SIZE)
     self._label = UnifiedLabel(lambda: self._mode.name, font_size=43, font_weight=FontWeight.BOLD,
                                text_color=rl.WHITE, alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
                                alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE,
@@ -95,7 +98,13 @@ class CameraToggleButton(Widget):
 
     rl.draw_rectangle_rounded(rect, 0.28, 10, bg_color)
     rl.draw_rectangle_rounded_lines_ex(rect, 0.28, 10, 4, rl.Color(255, 255, 255, 75))
-    self._label.render(rect)
+    if self._mode == CameraOverride.AUTO:
+      self._label.render(rect)
+    else:
+      icon = self._wide_icon if self._mode == CameraOverride.WIDE else self._road_icon
+      icon_x = rect.x + (rect.width - icon.width) / 2
+      icon_y = rect.y + (rect.height - icon.height) / 2
+      rl.draw_texture_ex(icon, rl.Vector2(icon_x, icon_y), 0.0, 1.0, rl.WHITE)
 
 
 class AugmentedRoadView(CameraView):
@@ -156,8 +165,8 @@ class AugmentedRoadView(CameraView):
 
     has_wide_cam = WIDE_CAM in self.available_streams
     self._camera_toggle.set_stream_state(self.stream_type, has_wide_cam)
-    self._camera_toggle.render(rl.Rectangle(self._content_rect.x + self._content_rect.width - CameraToggleButton.SIZE - 30,
-                                            self._content_rect.y + 252,
+    self._camera_toggle.render(rl.Rectangle(self._content_rect.x + self._content_rect.width - CameraToggleButton.SIZE - 36,
+                                            self._content_rect.y + self._content_rect.height - CameraToggleButton.SIZE - 36,
                                             CameraToggleButton.SIZE,
                                             CameraToggleButton.SIZE))
 
