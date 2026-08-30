@@ -10,7 +10,6 @@ from openpilot.common.time_helpers import system_time_valid
 from openpilot.system.ui.widgets.scroller import NavRawScrollPanel, NavScroller
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigCircleButton
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigDialog, BigConfirmationDialog
-from openpilot.selfdrive.ui.mici.widgets.pairing_dialog import PairingDialog
 from openpilot.selfdrive.ui.mici.onroad.driver_camera_dialog import DriverCameraDialog
 from openpilot.selfdrive.ui.mici.layouts.onboarding import TrainingGuide, TermsPage
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
@@ -19,7 +18,6 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.ui_state import device, ui_state
 from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.widgets.html_render import HtmlModal, HtmlRenderer
-from openpilot.system.athena.registration import UNREGISTERED_DONGLE_ID
 
 
 class ReviewTermsPage(TermsPage, NavScroller):
@@ -128,51 +126,15 @@ class UpdaterState(IntEnum):
   UPDATER_RESPONDING = 2
 
 
-class PairBigButton(BigButton):
-  def __init__(self):
-    super().__init__("pair", "connect.comma.ai", gui_app.texture("icons_mici/settings/comma_icon.png", 33, 60))
-
-  def _get_label_font_size(self):
-    return 64
-
-  def _update_state(self):
-    super()._update_state()
-
-    if ui_state.prime_state.is_paired():
-      self.set_text("paired")
-      if ui_state.prime_state.is_prime():
-        self.set_value("subscribed")
-      else:
-        self.set_value("upgrade to prime")
-    else:
-      self.set_text("pair")
-      self.set_value("connect.comma.ai")
-
-  def _handle_mouse_release(self, mouse_pos: MousePos):
-    super()._handle_mouse_release(mouse_pos)
-
-    # TODO: show ad dialog when clicked if not prime
-    if ui_state.prime_state.is_paired():
-      return
-    dlg: BigDialog | PairingDialog
-    if not system_time_valid():
-      dlg = BigDialog("", tr("Please connect to Wi-Fi to complete initial pairing."))
-    elif UNREGISTERED_DONGLE_ID == (ui_state.params.get("DongleId") or UNREGISTERED_DONGLE_ID):
-      dlg = BigDialog("", tr("Device must be registered with the comma.ai backend to pair."))
-    else:
-      dlg = PairingDialog()
-    gui_app.push_widget(dlg)
-
-
 UPDATER_TIMEOUT = 10.0  # seconds to wait for updater to respond
 
 
-class UpdateOpenpilotBigButton(BigButton):
+class UpdateTurbopilotBigButton(BigButton):
   def __init__(self):
     self._txt_update_icon = gui_app.texture("icons_mici/settings/device/update.png", 64, 75)
     self._txt_reboot_icon = gui_app.texture("icons_mici/settings/device/reboot.png", 64, 70)
     self._txt_up_to_date_icon = gui_app.texture("icons_mici/settings/device/up_to_date.png", 64, 64)
-    super().__init__("update openpilot", "", self._txt_update_icon)
+    super().__init__("update turbopilot", "", self._txt_update_icon)
 
     self._waiting_for_updater_t: float | None = None
     self._hide_value_t: float | None = None
@@ -211,7 +173,7 @@ class UpdateOpenpilotBigButton(BigButton):
     if value:
       self.set_text("")
     else:
-      self.set_text("update openpilot")
+      self.set_text("update turbopilot")
 
   def _update_state(self):
     super()._update_state()
@@ -306,15 +268,15 @@ class DeviceLayoutMici(NavScroller):
       params.remove("LiveDelay")
       params.put_bool("OnroadCycleRequested", True, block=True)
 
-    def uninstall_openpilot_callback():
+    def uninstall_turbopilot_callback():
       ui_state.params.put_bool("DoUninstall", True, block=True)
 
     reset_calibration_btn = EngagedConfirmationButton("reset calibration", "reset", gui_app.texture("icons_mici/settings/device/lkas.png", 122, 64),
                                                       reset_calibration_callback)
 
-    uninstall_openpilot_btn = EngagedConfirmationButton("uninstall openpilot", "uninstall",
+    uninstall_turbopilot_btn = EngagedConfirmationButton("uninstall turbopilot", "uninstall",
                                                         gui_app.texture("icons_mici/settings/device/uninstall.png", 64, 64),
-                                                        uninstall_openpilot_callback, exit_on_confirm=False)
+                                                        uninstall_turbopilot_callback, exit_on_confirm=False)
 
     reboot_btn = EngagedConfirmationCircleButton("reboot", gui_app.texture("icons_mici/settings/device/reboot.png", 64, 70),
                                                  reboot_callback, exit_on_confirm=False)
@@ -339,14 +301,13 @@ class DeviceLayoutMici(NavScroller):
 
     self._scroller.add_widgets([
       DeviceInfoLayoutMici(),
-      UpdateOpenpilotBigButton(),
-      PairBigButton(),
+      UpdateTurbopilotBigButton(),
       review_training_guide_btn,
       driver_cam_btn,
       terms_btn,
       regulatory_btn,
       reset_calibration_btn,
-      uninstall_openpilot_btn,
+      uninstall_turbopilot_btn,
       reboot_btn,
       self._power_off_btn,
     ])

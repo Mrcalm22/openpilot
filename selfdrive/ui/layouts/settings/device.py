@@ -8,7 +8,6 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.onroad.driver_camera_dialog import DriverCameraDialog
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.layouts.onboarding import TrainingGuide
-from openpilot.selfdrive.ui.widgets.pairing_dialog import PairingDialog
 from openpilot.system.ui.lib.application import FontWeight, gui_app
 from openpilot.system.ui.lib.multilang import multilang, tr, tr_noop
 from openpilot.system.ui.widgets import Widget, DialogResult
@@ -20,10 +19,9 @@ from openpilot.system.ui.widgets.scroller_tici import Scroller
 
 # Description constants
 DESCRIPTIONS = {
-  'pair_device': tr_noop("Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer."),
   'driver_camera': tr_noop("Preview the driver facing camera to ensure that driver monitoring has good visibility. (vehicle must be off)"),
-  'reset_calibration': tr_noop("openpilot requires the device to be mounted within 4° left or right and within 5° up or 9° down."),
-  'review_guide': tr_noop("Review the rules, features, and limitations of openpilot"),
+  'reset_calibration': tr_noop("Turbopilot requires the device to be mounted within 4° left or right and within 5° up or 9° down."),
+  'review_guide': tr_noop("Review the rules, features, and limitations of Turbopilot"),
 }
 
 
@@ -42,10 +40,6 @@ class DeviceLayout(Widget):
     ui_state.add_offroad_transition_callback(self._offroad_transition)
 
   def _initialize_items(self):
-    self._pair_device_btn = button_item(lambda: tr("Pair Device"), lambda: tr("PAIR"), lambda: tr(DESCRIPTIONS['pair_device']),
-                                        callback=lambda: gui_app.push_widget(PairingDialog()))
-    self._pair_device_btn.set_visible(lambda: not ui_state.prime_state.is_paired())
-
     self._reset_calib_btn = button_item(lambda: tr("Reset Calibration"), lambda: tr("RESET"), lambda: tr(DESCRIPTIONS['reset_calibration']),
                                         callback=self._reset_calibration_prompt)
     self._reset_calib_btn.set_description_opened_callback(self._update_calib_description)
@@ -54,9 +48,8 @@ class DeviceLayout(Widget):
                                            left_callback=self._reboot_prompt, right_callback=self._power_off_prompt)
 
     items = [
-      text_item(lambda: tr("Dongle ID"), self._params.get("DongleId") or (lambda: tr("N/A"))),
+      text_item(lambda: tr("Device ID"), self._params.get("DongleId") or (lambda: tr("N/A"))),
       text_item(lambda: tr("Serial"), self._params.get("HardwareSerial") or (lambda: tr("N/A"))),
-      self._pair_device_btn,
       button_item(lambda: tr("Driver Camera"), lambda: tr("PREVIEW"), lambda: tr(DESCRIPTIONS['driver_camera']),
                   callback=lambda: gui_app.push_widget(DriverCameraDialog()), enabled=ui_state.is_offroad),
       self._reset_calib_btn,
@@ -154,8 +147,8 @@ class DeviceLayout(Widget):
         cloudlog.exception("invalid LiveTorqueParameters")
 
     desc += "<br><br>"
-    desc += tr("openpilot is continuously calibrating, resetting is rarely required. " +
-               "Resetting calibration will restart openpilot if the car is powered on.")
+    desc += tr("Turbopilot is continuously calibrating, resetting is rarely required. " +
+               "Resetting calibration will restart Turbopilot if the car is powered on.")
 
     self._reset_calib_btn.set_description(desc)
 
