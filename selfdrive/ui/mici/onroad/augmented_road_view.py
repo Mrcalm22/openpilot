@@ -30,6 +30,13 @@ class BookmarkState(IntEnum):
   DRAGGING = 1
   TRIGGERED = 2
 
+
+class CameraOverride(IntEnum):
+  AUTO = 0
+  ROAD = 1
+  WIDE = 2
+
+
 WIDE_CAM_MAX_SPEED = 5.0  # m/s (10 mph)
 ROAD_CAM_MIN_SPEED = 10  # m/s (25 mph)
 
@@ -128,6 +135,71 @@ class BookmarkIcon(Widget):
       rl.draw_texture_ex(self._icon, rl.Vector2(icon_x, icon_y), 0.0, 1.0, rl.WHITE)
 
 
+class CameraToggleButton(Widget):
+  SIZE = 112
+
+  def __init__(self):
+    super().__init__()
+    self._mode = CameraOverride.AUTO
+    self._current_stream = ROAD_CAM
+    self._has_wide_cam = False
+    self._interacting = False
+    self._label = UnifiedLabel(lambda: self._mode.name, font_size=31, font_weight=FontWeight.BOLD,
+                               text_color=rl.WHITE, alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
+                               alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE,
+                               wrap_text=False)
+
+  def set_stream_state(self, current_stream: VisionStreamType, has_wide_cam: bool):
+    self._current_stream = current_stream
+    self._has_wide_cam = has_wide_cam
+    self.set_enabled(has_wide_cam)
+
+  def clear_override(self):
+    self._mode = CameraOverride.AUTO
+
+  def target_stream(self) -> VisionStreamType | None:
+    if not self._has_wide_cam:
+      return None
+    if self._mode == CameraOverride.ROAD:
+      return ROAD_CAM
+    if self._mode == CameraOverride.WIDE:
+      return WIDE_CAM
+    return None
+
+  def interacting(self):
+    interacting, self._interacting = self._interacting, False
+    return interacting
+
+  def _handle_mouse_release(self, mouse_pos: MousePos):
+    super()._handle_mouse_release(mouse_pos)
+    self._interacting = True
+    if not self._has_wide_cam:
+      return
+
+    if self._mode == CameraOverride.AUTO:
+      self._mode = CameraOverride.ROAD if self._current_stream == WIDE_CAM else CameraOverride.WIDE
+    elif self._mode == CameraOverride.WIDE:
+      self._mode = CameraOverride.ROAD
+    else:
+      self._mode = CameraOverride.AUTO
+
+  def _render(self, rect: rl.Rectangle):
+    bg_color = rl.Color(0, 0, 0, 166)
+    if self._mode == CameraOverride.WIDE:
+      bg_color = rl.Color(70, 91, 234, 220)
+    elif self._mode == CameraOverride.ROAD:
+      bg_color = rl.Color(57, 57, 57, 220)
+
+    if self.is_pressed:
+      bg_color = rl.Color(min(bg_color.r + 25, 255), min(bg_color.g + 25, 255), min(bg_color.b + 25, 255), bg_color.a)
+    if not self.enabled:
+      bg_color = rl.Color(40, 40, 40, 110)
+
+    center = rl.Vector2(rect.x + rect.width / 2, rect.y + rect.height / 2)
+    rl.draw_circle_v(center, rect.width / 2, bg_color)
+    self._label.render(rect)
+
+
 class AugmentedRoadView(CameraView):
   def __init__(self, bookmark_callback=None, stream_type: VisionStreamType = VisionStreamType.VISION_STREAM_ROAD):
     super().__init__("camerad", stream_type)
@@ -145,6 +217,7 @@ class AugmentedRoadView(CameraView):
 
     # Bookmark icon with swipe gesture
     self._bookmark_icon = BookmarkIcon(bookmark_callback)
+    self._camera_toggle = CameraToggleButton()
 
     self._model_renderer = ModelRenderer()
     self._hud_renderer = HudRenderer()
@@ -173,9 +246,12 @@ class AugmentedRoadView(CameraView):
     else:
       self._offroad_label.set_text("start the car to\nuse openpilot")
 
+    if not ui_state.started:
+      self._camera_toggle.clear_override()
+
   def _handle_mouse_release(self, mouse_pos: MousePos):
     # Don't trigger click callback if bookmark was triggered
-    if not self._bookmark_icon.interacting():
+    if not self._bookmark_icon.interacting() and not self._camera_toggle.interacting():
       super()._handle_mouse_release(mouse_pos)
 
   def _render(self, _):
@@ -231,6 +307,13 @@ class AugmentedRoadView(CameraView):
     self._alert_renderer.render(self._content_rect)
     self._hud_renderer.render(self._content_rect)
 
+    has_wide_cam = WIDE_CAM in self.available_streams
+    self._camera_toggle.set_stream_state(self.stream_type, has_wide_cam)
+    self._camera_toggle.render(rl.Rectangle(self._content_rect.x + self._content_rect.width - CameraToggleButton.SIZE - 22,
+                                            self._content_rect.y + 22,
+                                            CameraToggleButton.SIZE,
+                                            CameraToggleButton.SIZE))
+
     # Draw fake rounded border
     rl.draw_rectangle_rounded_lines_ex(self._content_rect, 0.2 * 1.02, 10, 50, rl.BLACK)
 
@@ -244,7 +327,10 @@ class AugmentedRoadView(CameraView):
     self._bookmark_icon.render(self.rect)
 
   def _switch_stream_if_needed(self, sm):
-    if sm['selfdriveState'].experimentalMode and WIDE_CAM in self.available_streams:
+    manual_target = self._camera_toggle.target_stream()
+    if manual_target is not None:
+      target = manual_target
+    elif sm['selfdriveState'].experimentalMode and WIDE_CAM in self.available_streams:
       v_ego = sm['carState'].vEgo
       if v_ego < WIDE_CAM_MAX_SPEED:
         target = WIDE_CAM
