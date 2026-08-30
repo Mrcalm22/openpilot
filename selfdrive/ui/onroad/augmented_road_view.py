@@ -1,5 +1,6 @@
 import numpy as np
 import pyray as rl
+from enum import IntEnum
 from cereal import log
 from msgq.visionipc import VisionStreamType
 from openpilot.selfdrive.ui import UI_BORDER_SIZE
@@ -9,7 +10,9 @@ from openpilot.selfdrive.ui.onroad.driver_state import DriverStateRenderer
 from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer
 from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer
 from openpilot.selfdrive.ui.onroad.cameraview import CameraView
-from openpilot.system.ui.lib.application import gui_app
+from openpilot.system.ui.lib.application import FontWeight, gui_app, MousePos
+from openpilot.system.ui.widgets import Widget
+from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.common.transformations.camera import DEVICE_CAMERAS, DeviceCameraConfig, view_frame_from_device_frame
 from openpilot.common.transformations.orientation import rot_from_euler
 
@@ -30,6 +33,71 @@ ROAD_CAM_MIN_SPEED = 15.0  # m/s (34 mph)
 INF_POINT = np.array([1000.0, 0.0, 0.0])
 
 
+class CameraOverride(IntEnum):
+  AUTO = 0
+  ROAD = 1
+  WIDE = 2
+
+
+class CameraToggleButton(Widget):
+  SIZE = 164
+
+  def __init__(self):
+    super().__init__()
+    self._mode = CameraOverride.AUTO
+    self._current_stream = ROAD_CAM
+    self._has_wide_cam = False
+    self._label = UnifiedLabel(lambda: self._mode.name, font_size=43, font_weight=FontWeight.BOLD,
+                               text_color=rl.WHITE, alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
+                               alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE,
+                               wrap_text=False)
+
+  def set_stream_state(self, current_stream: VisionStreamType, has_wide_cam: bool):
+    self._current_stream = current_stream
+    self._has_wide_cam = has_wide_cam
+    self.set_enabled(has_wide_cam)
+
+  def clear_override(self):
+    self._mode = CameraOverride.AUTO
+
+  def target_stream(self) -> VisionStreamType | None:
+    if not self._has_wide_cam:
+      return None
+    if self._mode == CameraOverride.ROAD:
+      return ROAD_CAM
+    if self._mode == CameraOverride.WIDE:
+      return WIDE_CAM
+    return None
+
+  def _handle_mouse_release(self, mouse_pos: MousePos):
+    super()._handle_mouse_release(mouse_pos)
+    if not self._has_wide_cam:
+      return
+
+    if self._mode == CameraOverride.AUTO:
+      self._mode = CameraOverride.ROAD if self._current_stream == WIDE_CAM else CameraOverride.WIDE
+    elif self._mode == CameraOverride.WIDE:
+      self._mode = CameraOverride.ROAD
+    else:
+      self._mode = CameraOverride.AUTO
+
+  def _render(self, rect: rl.Rectangle):
+    bg_color = rl.Color(0, 0, 0, 166)
+    if self._mode == CameraOverride.WIDE:
+      bg_color = rl.Color(70, 91, 234, 220)
+    elif self._mode == CameraOverride.ROAD:
+      bg_color = rl.Color(57, 57, 57, 220)
+
+    if self.is_pressed:
+      bg_color = rl.Color(min(bg_color.r + 25, 255), min(bg_color.g + 25, 255), min(bg_color.b + 25, 255), bg_color.a)
+    if not self.enabled:
+      bg_color = rl.Color(40, 40, 40, 110)
+
+    rl.draw_rectangle_rounded(rect, 0.28, 10, bg_color)
+    rl.draw_rectangle_rounded_lines_ex(rect, 0.28, 10, 4, rl.Color(255, 255, 255, 75))
+    self._label.render(rect)
+
+
 class AugmentedRoadView(CameraView):
   def __init__(self, stream_type: VisionStreamType = VisionStreamType.VISION_STREAM_ROAD):
     super().__init__("camerad", stream_type)
@@ -47,10 +115,12 @@ class AugmentedRoadView(CameraView):
     self._hud_renderer = HudRenderer()
     self.alert_renderer = AlertRenderer()
     self.driver_state_renderer = DriverStateRenderer()
+    self._camera_toggle = CameraToggleButton()
 
   def _render(self, rect):
     # Only render when system is started to avoid invalid data access
     if not ui_state.started:
+      self._camera_toggle.clear_override()
       return
 
     self._switch_stream_if_needed(ui_state.sm)
@@ -84,6 +154,13 @@ class AugmentedRoadView(CameraView):
     self.alert_renderer.render(self._content_rect)
     self.driver_state_renderer.render(self._content_rect)
 
+    has_wide_cam = WIDE_CAM in self.available_streams
+    self._camera_toggle.set_stream_state(self.stream_type, has_wide_cam)
+    self._camera_toggle.render(rl.Rectangle(self._content_rect.x + self._content_rect.width - CameraToggleButton.SIZE - 30,
+                                            self._content_rect.y + 252,
+                                            CameraToggleButton.SIZE,
+                                            CameraToggleButton.SIZE))
+
     # Custom UI extension point - add custom overlays here
     # Use self._content_rect for positioning within camera bounds
 
@@ -94,7 +171,7 @@ class AugmentedRoadView(CameraView):
     self._draw_border(rect)
 
   def _handle_mouse_press(self, _):
-    if not self._hud_renderer.user_interacting() and self._click_callback is not None:
+    if not self._hud_renderer.user_interacting() and not self._camera_toggle.is_pressed and self._click_callback is not None:
       self._click_callback()
 
   def _handle_mouse_release(self, _):
@@ -110,7 +187,10 @@ class AugmentedRoadView(CameraView):
     rl.draw_rectangle_rounded_lines_ex(border_rect, border_roundness, 10, UI_BORDER_SIZE, border_color)
 
   def _switch_stream_if_needed(self, sm):
-    if sm['selfdriveState'].experimentalMode and WIDE_CAM in self.available_streams:
+    manual_target = self._camera_toggle.target_stream()
+    if manual_target is not None:
+      target = manual_target
+    elif sm['selfdriveState'].experimentalMode and WIDE_CAM in self.available_streams:
       v_ego = sm['carState'].vEgo
       if v_ego < WIDE_CAM_MAX_SPEED:
         target = WIDE_CAM
