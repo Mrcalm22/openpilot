@@ -17,6 +17,7 @@ from openpilot.system.manager.helpers import unblock_stdout, write_onroad_params
 from openpilot.system.manager.process import ensure_running
 from openpilot.system.manager.process_config import managed_processes
 from openpilot.system.athena.registration import register, UNREGISTERED_DONGLE_ID
+from openpilot.system.turbopilot.identity import ensure_turbopilot_identity
 from openpilot.common.swaglog import cloudlog, add_file_handler
 from openpilot.system.version import get_build_metadata
 from openpilot.system.hardware.hw import Paths
@@ -62,6 +63,7 @@ def manager_init() -> None:
   params.put_bool("IsTestedBranch", build_metadata.tested_channel, block=True)
   params.put_bool("IsReleaseBranch", build_metadata.release_channel, block=True)
   params.put("HardwareSerial", serial, block=True)
+  ensure_turbopilot_identity(params)
 
   # set dongle id
   reg_res = register(show_spinner=True)

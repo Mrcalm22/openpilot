@@ -27,10 +27,11 @@ Create a record before shipment:
 4. Set `origin` to the Turbopilot public repository.
 5. Check out the production branch.
 6. Clear temporary development artifacts.
-7. Confirm the worktree is clean.
-8. Reboot.
-9. Run device QA.
-10. Record the final commit hash.
+7. Generate or verify Turbopilot device identity.
+8. Confirm the worktree is clean.
+9. Reboot.
+10. Run device QA.
+11. Record the final commit hash.
 
 Production branch setup:
 
@@ -41,6 +42,38 @@ git fetch origin
 git checkout -B release-tizi origin/release-tizi
 git branch --set-upstream-to=origin/release-tizi release-tizi
 git status --short --branch
+```
+
+## Device Identity
+
+Each production device must have a Turbopilot identity separate from comma registration:
+
+```text
+TurbopilotDeviceId
+TurbopilotDeviceSecret
+```
+
+The device ID is safe to display in UI, support records, and cloud inventory. The secret is a device credential and must not be shared publicly.
+
+View the device ID:
+
+```bash
+cd /data/openpilot
+python3 -m openpilot.system.turbopilot.identity
+```
+
+Regenerate identity only before shipment or after an explicit factory reset:
+
+```bash
+cd /data/openpilot
+python3 -m openpilot.system.turbopilot.identity --reset
+```
+
+Show the secret only when enrolling the device into a trusted Turbopilot backend:
+
+```bash
+cd /data/openpilot
+python3 -m openpilot.system.turbopilot.identity --show-secret
 ```
 
 ## Default Product Settings
