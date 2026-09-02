@@ -16,6 +16,7 @@ from openpilot.system.ui.widgets.html_render import HtmlModal
 from openpilot.system.ui.widgets.list_view import text_item, button_item, dual_button_item
 from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 from openpilot.system.ui.widgets.scroller_tici import Scroller
+from openpilot.system.turbopilot.identity import get_turbopilot_device_id
 
 # Description constants
 DESCRIPTIONS = {
@@ -48,7 +49,7 @@ class DeviceLayout(Widget):
                                            left_callback=self._reboot_prompt, right_callback=self._power_off_prompt)
 
     items = [
-      text_item(lambda: tr("Device ID"), self._params.get("DongleId") or (lambda: tr("N/A"))),
+      text_item(lambda: tr("Device ID"), get_turbopilot_device_id() or self._params.get("DongleId") or (lambda: tr("N/A"))),
       text_item(lambda: tr("Serial"), self._params.get("HardwareSerial") or (lambda: tr("N/A"))),
       button_item(lambda: tr("Driver Camera"), lambda: tr("PREVIEW"), lambda: tr(DESCRIPTIONS['driver_camera']),
                   callback=lambda: gui_app.push_widget(DriverCameraDialog()), enabled=ui_state.is_offroad),

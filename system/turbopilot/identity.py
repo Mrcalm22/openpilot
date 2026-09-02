@@ -54,6 +54,10 @@ def _write_identity(path: Path, data: dict[str, str]) -> None:
   os.chmod(path, 0o600)
 
 
+def get_turbopilot_device_id(path: Path = IDENTITY_PATH) -> str | None:
+  return _read_identity(path).get("device_id")
+
+
 def ensure_turbopilot_identity(*, reset: bool = False, path: Path = IDENTITY_PATH,
                                hardware_serial: str | None = None) -> TurbopilotIdentity:
   if reset:
