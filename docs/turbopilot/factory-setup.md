@@ -53,6 +53,12 @@ TurbopilotDeviceId
 TurbopilotDeviceSecret
 ```
 
+The first implementation stores identity in:
+
+```text
+/data/turbopilot/identity.json
+```
+
 The device ID is safe to display in UI, support records, and cloud inventory. The secret is a device credential and must not be shared publicly.
 
 View the device ID:

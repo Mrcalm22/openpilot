@@ -63,7 +63,7 @@ def manager_init() -> None:
   params.put_bool("IsTestedBranch", build_metadata.tested_channel, block=True)
   params.put_bool("IsReleaseBranch", build_metadata.release_channel, block=True)
   params.put("HardwareSerial", serial, block=True)
-  ensure_turbopilot_identity(params)
+  ensure_turbopilot_identity()
 
   # set dongle id
   reg_res = register(show_spinner=True)

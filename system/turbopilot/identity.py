@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 import argparse
 import hashlib
+import json
+import os
 import secrets
 from dataclasses import dataclass
-from typing import Any
+from pathlib import Path
 
-DEVICE_ID_PARAM = "TurbopilotDeviceId"
-DEVICE_SEED_PARAM = "TurbopilotDeviceSeed"
-DEVICE_SECRET_PARAM = "TurbopilotDeviceSecret"
+IDENTITY_PATH = Path(os.getenv("TURBOPILOT_IDENTITY_PATH", "/data/turbopilot/identity.json"))
 
 
 @dataclass(frozen=True)
 class TurbopilotIdentity:
   device_id: str
   device_secret: str
+  seed: str
 
 
 def _normalize_hardware_serial(serial: str | None) -> str:
@@ -31,35 +32,58 @@ def generate_device_id(hardware_serial: str, seed: str) -> str:
   return _format_device_id(digest)
 
 
-def ensure_turbopilot_identity(params: Any | None = None, *, reset: bool = False) -> TurbopilotIdentity:
-  from openpilot.common.params import Params
-  from openpilot.system.hardware import HARDWARE
+def _read_identity(path: Path) -> dict[str, str]:
+  try:
+    with path.open() as f:
+      data = json.load(f)
+    if isinstance(data, dict):
+      return {str(k): str(v) for k, v in data.items()}
+  except (FileNotFoundError, json.JSONDecodeError, OSError, ValueError):
+    pass
+  return {}
 
-  params = params or Params()
 
+def _write_identity(path: Path, data: dict[str, str]) -> None:
+  path.parent.mkdir(parents=True, exist_ok=True)
+  tmp_path = path.with_suffix(".tmp")
+  with tmp_path.open("w") as f:
+    json.dump(data, f, indent=2, sort_keys=True)
+    f.write("\n")
+  os.chmod(tmp_path, 0o600)
+  os.replace(tmp_path, path)
+  os.chmod(path, 0o600)
+
+
+def ensure_turbopilot_identity(*, reset: bool = False, path: Path = IDENTITY_PATH,
+                               hardware_serial: str | None = None) -> TurbopilotIdentity:
   if reset:
-    params.remove(DEVICE_ID_PARAM)
-    params.remove(DEVICE_SEED_PARAM)
-    params.remove(DEVICE_SECRET_PARAM)
+    path.unlink(missing_ok=True)
 
-  device_id = params.get(DEVICE_ID_PARAM)
-  device_secret = params.get(DEVICE_SECRET_PARAM)
+  data = _read_identity(path)
 
+  seed = data.get("seed")
+  if seed is None:
+    seed = secrets.token_hex(16)
+
+  device_id = data.get("device_id")
   if device_id is None:
-    seed = params.get(DEVICE_SEED_PARAM)
-    if seed is None:
-      seed = secrets.token_hex(16)
-      params.put(DEVICE_SEED_PARAM, seed, block=True)
-
-    hardware_serial = _normalize_hardware_serial(HARDWARE.get_serial())
+    if hardware_serial is None:
+      from openpilot.system.hardware import HARDWARE
+      hardware_serial = HARDWARE.get_serial()
+    hardware_serial = _normalize_hardware_serial(hardware_serial)
     device_id = generate_device_id(hardware_serial, seed)
-    params.put(DEVICE_ID_PARAM, device_id, block=True)
 
+  device_secret = data.get("device_secret")
   if device_secret is None:
     device_secret = f"tps_{secrets.token_urlsafe(32)}"
-    params.put(DEVICE_SECRET_PARAM, device_secret, block=True)
 
-  return TurbopilotIdentity(device_id=device_id, device_secret=device_secret)
+  identity = TurbopilotIdentity(device_id=device_id, device_secret=device_secret, seed=seed)
+  _write_identity(path, {
+    "device_id": identity.device_id,
+    "device_secret": identity.device_secret,
+    "seed": identity.seed,
+  })
+  return identity
 
 
 def main() -> None:
@@ -69,9 +93,9 @@ def main() -> None:
   args = parser.parse_args()
 
   identity = ensure_turbopilot_identity(reset=args.reset)
-  print(f"{DEVICE_ID_PARAM}={identity.device_id}")
+  print(f"TurbopilotDeviceId={identity.device_id}")
   if args.show_secret:
-    print(f"{DEVICE_SECRET_PARAM}={identity.device_secret}")
+    print(f"TurbopilotDeviceSecret={identity.device_secret}")
 
 
 if __name__ == "__main__":
