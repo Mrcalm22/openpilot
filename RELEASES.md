@@ -5,6 +5,7 @@ Turbopilot 0.1.0 (2026-09-03)
 * Main offroad UI rebranded from comma/openpilot-facing setup flow to Turbopilot.
 * Comma registration offroad alert suppressed for self-managed Turbopilot devices.
 * Turbopilot Device ID generated locally and shown in device settings.
+* Remaining app-layer comma logo assets replaced with the Turbopilot logo.
 * Default product stance clarified as local data first, with cloud services disabled unless Turbopilot enables them later.
 * Panda jungle ignition/onroad smoke flow verified on a tizi device with AGNOS 18.4.
 
