@@ -10,6 +10,7 @@ Create a record before shipment:
 - Hardware model
 - Hardware serial
 - AGNOS version
+- Turbopilot version
 - Turbopilot branch
 - Turbopilot commit
 - Supported vehicle/harness
@@ -84,6 +85,7 @@ python3 -m openpilot.system.turbopilot.identity --show-secret
 
 ## Default Product Settings
 
+- Product version: `Turbopilot 0.1.0`
 - Data mode: local first
 - Video upload: disabled
 - Log upload: disabled unless a Turbopilot cloud token is configured

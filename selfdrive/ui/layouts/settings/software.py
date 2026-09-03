@@ -10,6 +10,7 @@ from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.ui.widgets.list_view import button_item, text_item, ListItem
 from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 from openpilot.system.ui.widgets.scroller_tici import Scroller
+from openpilot.system.turbopilot.version import format_turbopilot_version
 
 # TODO: remove this. updater fails to respond on startup if time is not correct
 UPDATED_TIMEOUT = 10  # seconds to wait for updated to respond
@@ -53,7 +54,8 @@ class SoftwareLayout(Widget):
     super().__init__()
 
     self._onroad_label = ListItem(lambda: tr("Updates are only downloaded while the car is off."))
-    self._version_item = text_item(lambda: tr("Current Version"), ui_state.params.get("UpdaterCurrentDescription") or "")
+    current_description = ui_state.params.get("UpdaterCurrentDescription") or ""
+    self._version_item = text_item(lambda: tr("Turbopilot Version"), format_turbopilot_version(current_description))
     self._download_btn = button_item(lambda: tr("Download"), lambda: tr("CHECK"), callback=self._on_download_update)
 
     # Install button is initially hidden
@@ -93,7 +95,7 @@ class SoftwareLayout(Widget):
     # Update current version and release notes
     current_desc = ui_state.params.get("UpdaterCurrentDescription") or ""
     current_release_notes = (ui_state.params.get("UpdaterCurrentReleaseNotes") or b"").decode("utf-8", "replace")
-    self._version_item.action_item.set_text(current_desc)
+    self._version_item.action_item.set_text(format_turbopilot_version(current_desc))
     self._version_item.set_description(current_release_notes)
 
     # Update download button visibility and state

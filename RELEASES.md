@@ -1,3 +1,13 @@
+Turbopilot 0.1.0 (2026-09-03)
+=============================
+* First deliverable Turbopilot local-first build for tizi hardware.
+* Public OTA channel prepared on `release-tizi` and `staging-tizi`.
+* Main offroad UI rebranded from comma/openpilot-facing setup flow to Turbopilot.
+* Comma registration offroad alert suppressed for self-managed Turbopilot devices.
+* Turbopilot Device ID generated locally and shown in device settings.
+* Default product stance clarified as local data first, with cloud services disabled unless Turbopilot enables them later.
+* Panda jungle ignition/onroad smoke flow verified on a tizi device with AGNOS 18.4.
+
 Version 0.11.1 (2026-05-18)
 ========================
 * New driver monitoring model

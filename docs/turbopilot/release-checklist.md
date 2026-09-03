@@ -4,6 +4,8 @@ Use this checklist before moving code into `release-tizi`.
 
 ## Preflight
 
+- Confirm the Turbopilot product version in `system/turbopilot/version.py`.
+- Confirm `RELEASES.md` starts with the matching Turbopilot release note.
 - Confirm the target release branch is `release-tizi`.
 - Confirm staging validation branch is `staging-tizi`.
 - Confirm the repository is clean except intentional ignored or untracked local work.
@@ -27,7 +29,7 @@ Use this checklist before moving code into `release-tizi`.
 
 - Boot into offroad UI.
 - Open settings.
-- Open Software page.
+- Open Software page and confirm it shows the expected Turbopilot product version.
 - Confirm Turbopilot brand appears on the home page.
 - Confirm local data/cloud-disabled state is clear.
 - Confirm no comma registration alert appears.
